@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS / tooling
+.DS_Store
+.deepeval*
+
+# Raw datasets — download per README (too large / externally sourced)
+Datasets OP_26 Analytics/
+
+# Large regenerable artifacts (rebuilt by `python -m src.run_pipeline`)
+outputs/unified_panel.csv
+outputs/sessions_clean.csv
+outputs/demand_predictions.csv
+outputs/tariff_decisions.csv

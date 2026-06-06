@@ -1,0 +1,15 @@
+metric,value
+urbanev_peak_hours,"[1, 0, 6]"
+urbanev_mean_util,0.28
+acn_mean_util,0.877
+urbanev_util_peak,0.326
+urbanev_cv_peak,0.597
+urbanev_util_shoulder,0.276
+urbanev_cv_shoulder,0.603
+urbanev_util_offpeak,0.238
+urbanev_cv_offpeak,0.618
+dynamic_grid_price_std,0.22
+static_grid_price_std,0.162
+cbd_mean_util,0.243
+noncbd_mean_util,0.293
+acn_median_idle_hr,0.74

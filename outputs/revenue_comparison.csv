@@ -1,0 +1,5 @@
+scenario,revenue_gain_pct,avg_price_multiplier,note,offpeak_uplift_pct,peak_util_before,peak_util_after
+flat_baseline_Rs15,0.0,1.0,fixed Rs15/kWh reference,,,
+ablation_single_elasticity,7.353912442435719,1.107200285358724,single avg elasticity (no state structure),2.167478384218824,0.8731487484999548,0.7960807153505284
+dynamic_revenue_neutral,2.756690267959749,1.0027209946775093,same avg price as flat; gain = pure discrimination,15.286617222807877,0.8731487484999548,0.8729561852541857
+dynamic_full_learned,20.486209984667983,1.2024117864704733,also corrects underpriced flat level (avg price up),6.074073713967103,0.8731487484999548,0.8727952886270657
