@@ -34,17 +34,33 @@ MonitorAgent ─ score revenue / off-peak uplift / wait / efficiency → tune th
 
 ```
 src/                 engine (single-purpose modules)
+  config.py          paths, seed, model hyperparameters
   data.py            load both datasets → unified hourly panel
+  validate.py        data-quality gate (schema + range checks)
   features.py        time + lag features, data-driven demand periods
   elasticity.py      state-dependent price elasticity
   agents/            demand.py · tariff.py · monitor.py
-  run_pipeline.py    runs everything, writes outputs/
+  run_pipeline.py    runs everything, writes outputs/ + models/ + run_metadata.json
 notebooks/           01_preprocess → 05_monitor_eval (narrative, executed)
-tests/               pytest sanity suite (11 tests)
-outputs/             result CSVs + figures (large/raw files gitignored)
+tests/               pytest sanity suite (13 tests)
+outputs/             result CSVs + figures + run_metadata.json (large/raw files gitignored)
+models/              persisted trained models (gitignored, regenerable)
 DECK.md              5–7 slide presentation content
 docs/plans/          implementation plan
+Dockerfile, Makefile, .github/workflows/ci.yml
 ```
+
+## MLOps
+
+Kept lightweight and fit-for-purpose (no MLflow/DVC/serving overhead this project doesn't need):
+
+- **Reproducibility** — single `SEED` + centralized hyperparameters in `src/config.py`.
+- **Data validation gate** — `src/validate.py` checks schema and value ranges before training; bad/drifted input fails loudly.
+- **Model persistence** — trained demand models saved to `models/` (`DemandAgent.save()/load()`), so inference needs no retraining.
+- **Run lineage / experiment tracking** — every run writes `outputs/run_metadata.json` (UTC timestamp, git SHA, seed, data summary, headline metrics).
+- **Logging** — structured `logging` throughout the pipeline.
+- **CI** — GitHub Actions runs the test suite on every push.
+- **Reproducible env** — `Dockerfile` (`make docker`).
 
 ## Quickstart
 

@@ -9,6 +9,7 @@ import pytest
 from src.agents.tariff import TariffAgent
 from src.agents.monitor import wait_reduction_pct, pricing_efficiency
 from src.elasticity import _first_diff, ELASTICITY_BOUNDS
+from src.validate import validate_panel, DataValidationError
 
 
 # --- TariffAgent.decide -----------------------------------------------------
@@ -93,3 +94,27 @@ def test_first_diff_drops_nonpositive():
     })
     out = _first_diff(g)
     assert (out["price_per_kwh"] > 0).all()
+
+
+# --- data validation gate ---------------------------------------------------
+def _good_panel():
+    return pd.DataFrame({
+        "timestamp": pd.date_range("2022-06-19", periods=2, freq="h").tolist() * 1,
+        "source": ["acn", "urbanev"],
+        "location_id": ["a", "1"],
+        "energy_kwh": [1.0, 5.0], "occupancy": [1.0, 3.0], "capacity": [1.0, 10.0],
+        "utilization": [0.5, 0.3], "price_per_kwh": [float("nan"), 1.0],
+        "is_dynamic_pricing": [0, 1],
+    })
+
+
+def test_validate_accepts_good_panel():
+    summary = validate_panel(_good_panel())
+    assert summary["rows"] == 2 and summary["checks_passed"] >= 6
+
+
+def test_validate_rejects_out_of_range_utilization():
+    bad = _good_panel()
+    bad.loc[0, "utilization"] = 1.5
+    with pytest.raises(DataValidationError):
+        validate_panel(bad)

@@ -8,11 +8,14 @@ seasonal-naive baseline so the gain is interpretable.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
+from ..config import HGB_PARAMS, LGBM_PARAMS, MODELS
 from ..features import add_lag_features, add_time_features
 
 try:
@@ -33,9 +36,8 @@ CONGESTION_THRESHOLD = 0.8
 
 def _new_model():
     if _HAS_LGBM:
-        return LGBMRegressor(n_estimators=300, learning_rate=0.05, num_leaves=31,
-                             subsample=0.8, colsample_bytree=0.8, random_state=42, verbose=-1)
-    return HistGradientBoostingRegressor(max_iter=300, learning_rate=0.05, random_state=42)
+        return LGBMRegressor(**LGBM_PARAMS)
+    return HistGradientBoostingRegressor(**HGB_PARAMS)
 
 
 def temporal_split(df: pd.DataFrame, train=0.7, val=0.15):
@@ -117,3 +119,16 @@ class DemandAgent:
         sd = df["source"].map(self.residual_std).fillna(0.15).values
         out["congestion_probability"] = 1 - norm.cdf((CONGESTION_THRESHOLD - util) / np.maximum(sd, 1e-3))
         return out
+
+    def save(self, path: Path = MODELS) -> Path:
+        """Persist trained models + residual stats so inference needs no retrain."""
+        path.mkdir(parents=True, exist_ok=True)
+        joblib.dump({"models": self.models, "residual_std": self.residual_std,
+                     "metrics": self.metrics}, path / "demand_agent.joblib")
+        return path / "demand_agent.joblib"
+
+    @classmethod
+    def load(cls, path: Path = MODELS) -> "DemandAgent":
+        state = joblib.load(path / "demand_agent.joblib")
+        return cls(models=state["models"], metrics=state["metrics"],
+                   residual_std=state["residual_std"])

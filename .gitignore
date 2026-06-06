@@ -18,3 +18,6 @@ outputs/unified_panel.csv
 outputs/sessions_clean.csv
 outputs/demand_predictions.csv
 outputs/tariff_decisions.csv
+
+# Trained model artifacts (regenerable; not version-controlled)
+models/

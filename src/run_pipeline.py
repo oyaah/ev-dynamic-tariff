@@ -5,16 +5,24 @@ Run:  python -m src.run_pipeline
 """
 from __future__ import annotations
 
-from pathlib import Path
+import json
+import logging
+import subprocess
+from datetime import datetime, timezone
 
 import pandas as pd
 
+from .config import MODELS, OUTPUTS, SEED, set_seed
 from .data import OUT, build_unified, load_unified
+from .validate import validate_panel
 from .agents.demand import DemandAgent
 from .agents.monitor import run_feedback_loop
 from .agents.tariff import TariffAgent
 from .elasticity import (estimate_elasticity, estimate_elasticity_by_state,
                          make_eps_fn, to_frame)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger("pipeline")
 
 
 def build_pred_table(panel: pd.DataFrame, agent: DemandAgent, source="urbanev") -> pd.DataFrame:
@@ -23,15 +31,30 @@ def build_pred_table(panel: pd.DataFrame, agent: DemandAgent, source="urbanev") 
     return preds.merge(energy, on=["timestamp", "location_id"], how="left").dropna(subset=["energy_kwh"])
 
 
+def _git_sha() -> str:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
+                                       cwd=OUTPUTS.parent, text=True).strip()
+    except Exception:
+        return "unknown"
+
+
 def main() -> None:
+    set_seed()
     OUT.mkdir(exist_ok=True)
     panel = load_unified() if (OUT / "unified_panel.csv").exists() else build_unified()[0]
+
+    # --- Data validation gate: fail loudly on bad/drifted input ---
+    data_summary = validate_panel(panel)
+    log.info("data validated: %s", data_summary)
 
     # --- Demand Prediction Agent ---
     demand = DemandAgent()
     metrics = demand.fit_eval(panel)
     metrics.to_csv(OUT / "demand_metrics.csv", index=False)
     demand.predictions.to_csv(OUT / "demand_predictions.csv", index=False)
+    demand.save(MODELS)  # persist trained models for inference without retraining
+    log.info("demand models saved to %s", MODELS)
 
     # --- Elasticity (UrbanEV): overall + state-dependent (revenue-critical) ---
     elas = estimate_elasticity()
@@ -57,8 +80,8 @@ def main() -> None:
                  "note": "single avg elasticity (no state structure)"})
 
     # --- Monitoring & Learning Agent: feedback loop tunes the agent ---
-    log, final, tuned = run_feedback_loop(pred, eps, eps_fn=eps_fn)
-    log.to_csv(OUT / "monitor_episodes.csv", index=False)
+    ep_log, final, tuned = run_feedback_loop(pred, eps, eps_fn=eps_fn)
+    ep_log.to_csv(OUT / "monitor_episodes.csv", index=False)
 
     # CORE result: revenue-neutral mean price -> pure price-discrimination gain
     neutral = TariffAgent(surge_sensitivity=tuned.surge_sensitivity,
@@ -90,24 +113,33 @@ def main() -> None:
         "wait_reduction_pct": final["wait_reduction_pct"],       # brief: avg waiting-time reduction
         "customer_response_pct": final["customer_response_pct"], # brief: customer response rate
         "pricing_efficiency": final["pricing_efficiency"],       # brief: pricing efficiency score
-        "episodes": len(log),
-        "composite_first": float(log["composite"].iloc[0]),
-        "composite_last": float(log["composite"].iloc[-1]),
+        "episodes": len(ep_log),
+        "composite_first": float(ep_log["composite"].iloc[0]),
+        "composite_last": float(ep_log["composite"].iloc[-1]),
         "surge_sensitivity_final": tuned.surge_sensitivity,
         "discount_sensitivity_final": tuned.discount_sensitivity,
     }
     pd.DataFrame([final_kpis]).to_csv(OUT / "final_kpis.csv", index=False)
 
-    print("=== PIPELINE COMPLETE ===")
-    print("Demand R2 (UrbanEV):", round(final_kpis["demand_r2_urbanev"], 3))
-    print("Elasticity by state:", {k: round(v, 3) for k, v in state["by_state"].items()})
-    print("Revenue gain % [neutral, equal avg price]:", round(kN["revenue_gain_pct"], 2))
-    print("Revenue gain % [full learned, avg price x", round(kC["avg_price_multiplier"], 2), "]:",
-          round(kC["revenue_gain_pct"], 2))
-    print("Off-peak uplift % [neutral]:", round(kN["offpeak_uplift_pct"], 2))
-    print("Composite first -> last:",
-          round(final_kpis["composite_first"], 2), "->", round(final_kpis["composite_last"], 2))
-    print("Outputs in:", OUT)
+    # --- run metadata: lineage + experiment tracking (lightweight, no MLflow) ---
+    run_meta = {
+        "run_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "git_sha": _git_sha(),
+        "seed": SEED,
+        "data": data_summary,
+        "elasticity_by_state": state["by_state"],
+        "headline_kpis": {k: round(float(v), 4) for k, v in final_kpis.items()
+                          if isinstance(v, (int, float))},
+    }
+    (OUT / "run_metadata.json").write_text(json.dumps(run_meta, indent=2))
+
+    log.info("PIPELINE COMPLETE | demand R2 (UrbanEV)=%.3f", final_kpis["demand_r2_urbanev"])
+    log.info("elasticity by state: %s", {k: round(v, 3) for k, v in state["by_state"].items()})
+    log.info("revenue gain %% [neutral / full x%.2f]: %.2f / %.2f",
+             kC["avg_price_multiplier"], kN["revenue_gain_pct"], kC["revenue_gain_pct"])
+    log.info("off-peak uplift %% [neutral]: %.2f | composite %.2f -> %.2f",
+             kN["offpeak_uplift_pct"], final_kpis["composite_first"], final_kpis["composite_last"])
+    log.info("outputs -> %s | models -> %s", OUT, MODELS)
 
 
 if __name__ == "__main__":

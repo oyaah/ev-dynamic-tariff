@@ -1,9 +1,9 @@
-.PHONY: install run test notebooks clean
+.PHONY: install run test notebooks docker clean
 
 install:
 	pip install -r requirements.txt
 
-run:            ## build unified base + all results into outputs/
+run:            ## validate data, run agents, save models + all results
 	python -m src.run_pipeline
 
 test:
@@ -13,5 +13,8 @@ notebooks:      ## regenerate and execute the 5 notebooks
 	python build_notebooks.py
 	jupyter nbconvert --to notebook --execute --inplace notebooks/*.ipynb
 
+docker:         ## build the reproducible image
+	docker build -t ev-tariff .
+
 clean:
-	rm -rf __pycache__ src/__pycache__ src/agents/__pycache__ tests/__pycache__ .pytest_cache
+	rm -rf __pycache__ src/__pycache__ src/agents/__pycache__ tests/__pycache__ .pytest_cache models

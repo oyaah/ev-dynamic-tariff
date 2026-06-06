@@ -1,0 +1,40 @@
+{
+  "run_at_utc": "2026-06-06T20:13:39+00:00",
+  "git_sha": "9dfecaa",
+  "seed": 42,
+  "data": {
+    "rows": 279193,
+    "rows_by_source": {
+      "acn": 101353,
+      "urbanev": 177840
+    },
+    "checks_passed": 6
+  },
+  "elasticity_by_state": {
+    "low": -0.5143301060478804,
+    "mid": -0.12470445593510959,
+    "high": -0.001,
+    "vhigh": -0.001
+  },
+  "headline_kpis": {
+    "elasticity_overall": -0.2889,
+    "eps_low": -0.5143,
+    "eps_mid": -0.1247,
+    "eps_high": -0.001,
+    "eps_vhigh": -0.001,
+    "demand_r2_urbanev": 0.9478,
+    "demand_rmse_urbanev": 0.04,
+    "revenue_gain_neutral_pct": 2.7567,
+    "revenue_gain_full_pct": 20.4862,
+    "avg_price_multiplier_full": 1.2024,
+    "offpeak_uplift_pct": 15.2866,
+    "wait_reduction_pct": 0.4832,
+    "customer_response_pct": 0.6023,
+    "pricing_efficiency": 1.1976,
+    "episodes": 5.0,
+    "composite_first": 6.5163,
+    "composite_last": 20.2329,
+    "surge_sensitivity_final": 2.0,
+    "discount_sensitivity_final": 1.5
+  }
+}
