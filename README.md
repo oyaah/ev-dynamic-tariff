@@ -45,8 +45,7 @@ notebooks/           01_preprocess → 05_monitor_eval (narrative, executed)
 tests/               pytest sanity suite (13 tests)
 outputs/             result CSVs + figures + run_metadata.json (large/raw files gitignored)
 models/              persisted trained models (gitignored, regenerable)
-DECK.md              5–7 slide presentation content
-docs/plans/          implementation plan
+
 Dockerfile, Makefile, .github/workflows/ci.yml
 ```
 
@@ -87,7 +86,7 @@ Not committed (externally sourced). Download and place under `Datasets OP_26 Ana
 
 `python -m src.run_pipeline` regenerates every artifact from these.
 
-## Method notes & honest limitations
+## Method notes 
 
 - Revenue is a counterfactual **simulation** (q = q₀·multiplier^ε(state)); elasticity is **associational, not causal** (endogeneity mitigated via lagged-state binning + hour fixed effects, not eliminated).
 - The two datasets differ in geography/year/usage, so they share one schema but are sliced by `source` — never numerically merged across networks; all pricing analysis is UrbanEV-sourced.
